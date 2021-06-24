@@ -233,6 +233,7 @@ export default {
             notifModal: false,
             notifHeader: null,
             notifMessage: null,
+            deadmanTimer:null,
         }
     },
     created() {
@@ -266,7 +267,6 @@ export default {
             this.contractAddress = this.$cookies.get("contract_address");
             this.connectToWill();
         }
-        console.log(moment())
         // this.getTransactionsByAccount(this.curAddress)
 
         // 0xb33456B530DEF181D612Ae802603286b1ac720F9
@@ -278,6 +278,7 @@ export default {
             this.validCharon = false;
             this.isOwner = true;
             this.error = null;
+            this.stopInterval()
         },
         formatEpoch(epochDate) {
             return moment.unix(epochDate).format('LL');
@@ -318,6 +319,7 @@ export default {
                 this.notifHeader = "Cancel Success!"
                 this.notifMessage = "Kindly refresh page to reflect changes"
                 this.notifModal = true;
+                this.stopInterval()
             }).catch((e) => {
                 console.log(e)
             });
@@ -349,10 +351,17 @@ export default {
             })
         },
         startInterval() {
-            setInterval(() => {
-                this.count++;
-                console.log(this.count)
-            }, 2000)
+            this.deadmanTimer = setInterval(() => {
+                let diff = moment(this.activationDate).diff(moment(),'days');
+                if (diff <= 0) {
+                    this.executeWill()
+                }
+                console.log(diff)
+            }, 1000 * 60 * 60)
+        },
+        stopInterval() {
+            clearInterval(this.deadmanTimer);
+            this.deadmanTimer = null;
         },
         async createContract() {
             if (this.weiValue == null || this.weiValue == 0) {
@@ -443,6 +452,7 @@ export default {
 
             this.$cookies.set("contract_address", this.contractAddress, 60 * 60)
             this.validCharon = true
+            this.startInterval()
         },
         updateSummary() {
             // if (!this.isOwner) return;
