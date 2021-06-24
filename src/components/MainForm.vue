@@ -58,6 +58,12 @@
             <sui-button content="Return Home" icon="home" @click.stop.prevent="goHome" />
 
             <h4 is="sui-header">Last Will & Testament Summary</h4>
+            <a is="sui-list-description" v-if='!benefactor.valid'>
+                            <sui-label color="red" horizontal>
+                                Contract Expired
+                            </sui-label>
+                        </a>
+            <div v-else>
             <sui-list divided relaxed v-if="isOwner">
                 <sui-list-item>
                     <sui-list-icon name="money" size="large" vertical-align="middle" />
@@ -81,6 +87,7 @@
                                 No Beneficiaries Added
                             </sui-label>
                         </a>
+                        
                     </sui-list-content>
                 </sui-list-item>
                 <sui-list-item>
@@ -95,15 +102,23 @@
                     <sui-list-icon name="key" size="large" vertical-align="middle" />
                     <sui-list-content>
                         <a is="sui-list-header">Activation Date</a>
-                        <a is="sui-list-description">{{activationDate}}</a>
+                        <a is="sui-list-description">{{activationDate}} ({{diff}} days to activation)</a>
+                        <a is="sui-list-description">Last checked {{lastChecked}}</a>
                     </sui-list-content>
                 </sui-list-item>
             </sui-list>
             <sui-label v-else color="red" horizontal>
                 Only Owner Can View This
             </sui-label>
+            </div>
 
             <h4 is="sui-header">Actions</h4>
+            <a is="sui-list-description" v-if='!benefactor.valid'>
+                            <sui-label color="red" horizontal>
+                                Contract Expired
+                            </sui-label>
+                        </a>
+                        <div v-else>
 
             <sui-form v-if="isOwner">
                 <!-- <sui-form-field width="eight">
@@ -160,6 +175,7 @@
             <sui-label v-else color="red" horizontal>
                 Only Owner Can Perform Actions
             </sui-label>
+                        </div>
 
         </div>
 
@@ -210,7 +226,7 @@ export default {
             useSwitch: false,
             count: 0,
             curAddress: null,
-            contractAddress: '0x0f1d3b307c0f33910f9deff450282c249781e3da',
+            contractAddress: '',
             web3: null,
             error: null,
             validCharon: false,
@@ -234,6 +250,7 @@ export default {
             notifHeader: null,
             notifMessage: null,
             deadmanTimer:null,
+            diff:null,
         }
     },
     created() {
@@ -351,17 +368,23 @@ export default {
             })
         },
         startInterval() {
+            this.check()
             this.deadmanTimer = setInterval(() => {
-                let diff = moment(this.activationDate).diff(moment(),'days');
-                if (diff <= 0) {
-                    this.executeWill()
-                }
-                console.log(diff)
+                this.check()
             }, 1000 * 60 * 60)
         },
         stopInterval() {
             clearInterval(this.deadmanTimer);
             this.deadmanTimer = null;
+        },
+        check(){
+            let diff = moment(this.activationDate).diff(moment(),'days');
+            this.diff = diff;
+            this.lastChecked = moment().format('LL')
+            if (diff <= 0) {
+                this.executeWill()
+            }
+            console.log(diff)
         },
         async createContract() {
             if (this.weiValue == null || this.weiValue == 0) {
@@ -402,7 +425,7 @@ export default {
                     console.log(confirmationNumber)
                     console.log(receipt)
                 })
-                .then(function (newContractInstance) {
+                .then((newContractInstance) => {
                     console.log(newContractInstance.options.address) // instance with the new contract address
                     this.contractAddress = newContractInstance.options.address;
                     this.successModal = true;
@@ -452,7 +475,7 @@ export default {
 
             this.$cookies.set("contract_address", this.contractAddress, 60 * 60)
             this.validCharon = true
-            this.startInterval()
+            // this.startInterval()
         },
         updateSummary() {
             // if (!this.isOwner) return;
@@ -481,6 +504,7 @@ export default {
                 this.benefactor.estate = res[2];
                 this.benefactor.daysToExecution = res[3];
                 this.benefactor.lastTx = res[4];
+                this.startInterval()
 
             }).catch(e => {
                 console.log(e.message)
